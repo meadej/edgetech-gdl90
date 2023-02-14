@@ -2,6 +2,11 @@ version: "3"
 services:
   gdl90:
     image: iqtlabs/edgetech-gdl90:latest
+    environment:
+      - MQTT_IP=mqtt
+      - GDL_RECEIVE_HOST=0.0.0.0
+      - GDL_RECEIVE_PORT=4000 
+      - SEND_DATA_TOPIC=/skyscan/JSON
     build:
       context: ./edgetech-gdl90
       dockerfile: ./Dockerfile

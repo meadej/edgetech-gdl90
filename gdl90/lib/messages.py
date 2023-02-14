@@ -5,23 +5,24 @@
 """GDL messages; these are only the output messages"""
 
 from collections import namedtuple
+import logging
 
 def _parseStratuxHeartbeatCC(msgBytes):
     "Stratux message type 0xCC or 0x53"
     msg = namedtuple('StratuxHeartbeat', 'MsgType GPSStatus AHRSStatus ProtocolVersion')
     fields = ["StratuxHeartbeat"]
 
-    if msg[1] & 0x02 == 1:
+    if msgBytes[1] & 0x02 == 1:
         fields.append(1)
     else:
         fields.append(0)
 
-    if msg[1] & 0x01 == 1:
+    if msgBytes[1] & 0x01 == 1:
         fields.append(1)
     else:
         fields.append(0)
 
-    fields.append(msg[1]>>2)
+    fields.append(msgBytes[1]>>2)
 
     return msg._make(fields)
 
@@ -220,20 +221,15 @@ def _thunkByte(c, mask=0xff, shift=0):
         val = val << shift
     return val
 
-def _parseAHRSReport():
+def _parseAHRSReport(msgBytes):
     #TODO - Implement AHRS Parsing
     return None
 
 MessageIDMapping = {
     0x00 : _parseHeartbeat,
-    0x07 : _parseUplinkData,
-    0x0a : _parseOwnershipReport,
-    0x0b : _parseOwnershipGeometricAltitude,
     0x14 : _parseTrafficReport,
-    0x65 : _parseGpsTime,
     0xCC: _parseStratuxHeartbeatCC,
     0x53: _parseStratuxHeartbeatCC,
-    0x4C: _parseAHRSReport
 }
 
 

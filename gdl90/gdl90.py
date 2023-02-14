@@ -24,8 +24,9 @@ class GDL90PubSub(BaseMQTTPubSub):
 
     def __init__(
         self: Any,
-        gdl_receive_port: str,
         send_data_topic: str,
+        gdl_receive_port: int,
+        gdl_receive_host: str,
         debug: bool = True,
         **kwargs: Any,
     ):
@@ -42,6 +43,7 @@ class GDL90PubSub(BaseMQTTPubSub):
         super().__init__(**kwargs)
         # convert contructor parameters to class variables
         self.gdl_receive_port = gdl_receive_port
+        self.gdl_receive_host = gdl_receive_host
         self.send_data_topic = send_data_topic
         self.kill_listener = False
         self.gdl_buffer_length = 1024
@@ -64,7 +66,9 @@ class GDL90PubSub(BaseMQTTPubSub):
     def _GDL_return(self: Any, message: namedtuple):
         """Format GDL message for passing onto the bus and publish"""
         if message.MsgType == "Heartbeat":
-            self.current_gdl_timestamp = message.Timestamp
+            self.current_gdl_timestamp = message.TimeStamp
+            logging.info("GDL Heartbeat")
+            self._send_data({"GDL Heartbeat":"alive"})
 
         if message.MsgType == "TrafficReport":
             publish_dict = {}
@@ -82,16 +86,17 @@ class GDL90PubSub(BaseMQTTPubSub):
             publish_dict["lon"] = message.Longitude
             publish_dict["flight"] = message.CallSign
             #squawk
-            self._senddata(publish_dict)
+            logging.info("Traffix stratux message")
+            self._send_data(publish_dict)
         else:
             logging.info("Non-traffic message: " + str(message.MsgType))        
 
-    def _handle_GDL_message(self: Any, message: bytes):
+    def _handle_GDL_message(self: Any, message):
         """
         Handles received GDL messages.
         """
 
-        self.gdl_decoder.addBytes(bytearray.fromhex(message))
+        self.gdl_decoder.addBytes(message)
 
     def _construct_listener(self: Any) -> None:
         """
@@ -103,20 +108,22 @@ class GDL90PubSub(BaseMQTTPubSub):
 
     def _listen_port(self: Any) -> None:
         "Continuously listens on a given port for UDP datagrams"
-        while not self.kill_listener:
-            try:
-                self.soc = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                self.soc.bind(
-                    "localhost",
-                    self.gdl_receive_port
-                )
-                data, addr = self.soc.recvfrom(self.gdl_buffer_length)
-                self.handle_GDL_message(data)
-                logging.debug("Handling GDL message")
+        try:
+            logging.info("Connecting to " + str(self.gdl_receive_host) + " on port " + str(self.gdl_receive_port))
+            self.soc = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.soc.bind(
+                (str(self.gdl_receive_host),
+                int(self.gdl_receive_port))
+            )
+        except Exception as e:
+            logging.error("Error in establishing connection to local socket" + str(e))
 
-            except Exception as e:
-                logging.error("Error in establishing connection to local socket")
-        
+        while not self.kill_listener:
+            logging.debug("Listening on socket")
+            data, addr = self.soc.recvfrom(self.gdl_buffer_length)
+            logging.debug("Handling GDL message")
+            self._handle_GDL_message(data)
+
         self.soc.close()
 
     def _disconnect_socket(self: Any) -> None:
@@ -132,6 +139,7 @@ class GDL90PubSub(BaseMQTTPubSub):
         Returns:
             bool: Returns True if successful publish else False.
         """
+        logging.info("Sending data")
         out_json = self.generate_payload_json(
             push_timestamp=str(int(datetime.utcnow().timestamp())),
             device_type="SkyScan",
@@ -189,7 +197,8 @@ class GDL90PubSub(BaseMQTTPubSub):
 
 if __name__ == "__main__":
     sender = GDL90PubSub(
-        gdl_receive_port=str(os.environ.get("GDL_RECEIVE_PORT")),
+        gdl_receive_port=int(os.environ.get("GDL_RECEIVE_PORT")),
+        gdl_receive_host=str(os.environ.get("GDL_RECEIVE_HOST")),
         send_data_topic=str(os.environ.get("SEND_DATA_TOPIC")),
         mqtt_ip=str(os.environ.get("MQTT_IP")),
     )

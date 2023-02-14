@@ -65,7 +65,6 @@ class Decoder(object):
     
     def _parseMessages(self):
         """parse input buffer for all complete messages"""
-        print(self.inputBuffer)
         if not self.parserSynchronized:
             if not self._resynchronizeParser():
                 # false if we empty the input buffer
@@ -162,7 +161,7 @@ class Decoder(object):
             return False
         self.stats['msgs'][msg[0]][0] += 1
         m = messages.messageToObject(msg)
-        if not m:
+        if not m or m is None:
             return False
         
         self.return_handler(m)
@@ -174,54 +173,11 @@ class Decoder(object):
             elif self.format == 'plotflight':
                 self.altitudeAge += 1
         
-        elif m.MsgType == 'OwnershipReport':
-            if m.Latitude == 0.00 and m.Longitude == 0.00:
-                if m.NavIntegrityCat == 0 or m.NavIntegrityCat == 1:  # unknown or <20nm, consider it invalid
-                    pass
-            elif self.format == 'normal':
-                print('MSG10: {:0.7f} {:0.7f} {:d} {:d} {:d}'.format(m.Latitude, m.Longitude, m.HVelocity, m.Altitude, m.TrackHeading))
-            elif self.format == 'plotflight':
-                if self.altitudeAge < self.altitudeMaxAge:
-                    altitude = self.altitude
-                else:
-                    # revert to 25' resolution altitude from ownership report
-                    altitude = m.Altitude
-                
-                # Must have the GPS time from a message 101 before outputting anything
-                if not self.gpsTimeReceived:
-                    return True
-                print('{:02f}:{:02f}:{:02f} {:0.7f} {:0.7f} {:d} {:d} {:d}'.format(self.currtime.hour, self.currtime.minute, self.currtime.second, m.Latitude, m.Longitude, m.HVelocity, altitude, m.TrackHeading))
-        
-        elif m.MsgType == 'OwnershipGeometricAltitude':
-            if self.format == 'normal':
-                print('MSG11: {:d} {:04x}h'.format(m.Altitude, m.VerticalMetrics))
-            elif self.format == 'plotflight':
-                self.altitude = m.Altitude
-                self.altitudeAge = 0
-        
         elif m.MsgType == 'TrafficReport':
             if m.Latitude == 0.00 and m.Longitude == 0.00 and m.NavIntegrityCat == 0:  # no valid position
                 pass
             elif self.format == 'normal':
                 print('MSG20: {:0.7f} {:0.7f} {:d} {:d} {:d} {:d} {:s}'.format(m.Latitude, m.Longitude, m.HVelocity, m.VVelocity, m.Altitude, m.TrackHeading, m.CallSign))
-        
-        elif m.MsgType == 'GpsTime':
-            if not self.gpsTimeReceived:
-                self.gpsTimeReceived = True
-                print(m)
-                utcTime = datetime.time(m.Hour, m.Minute, 0)
-                self.currtime = datetime.datetime.combine(self.dayStart, utcTime)
-            else:
-                # correct time slips and move clock forward if necessary
-                if self.currtime.hour < m.Hour or self.currtime.minute < m.Minute:
-                    utcTime = datetime.time(m.Hour, m.Minute, 0)
-                    self.currtime = datetime.datetime.combine(self.currtime, utcTime)
-            
-            if self.format == 'normal':
-                print('MSG101: {:02f}:{:02f} UTC (waas = {:s})'.format(m.Hour, m.Minute, m.Waas))
-        
-        elif m.MsgType == 'UplinkData' and self.uatOutput == True:
-            messageUatToObject(m)
         
         return True
     
