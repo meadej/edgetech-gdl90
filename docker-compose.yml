@@ -1,0 +1,10 @@
+version: "3"
+services:
+  gdl90:
+    image: iqtlabs/edgetech-gdl90:latest
+    build:
+      context: ./edgetech-gdl90
+      dockerfile: ./Dockerfile
+    restart: unless-stopped
+    ports:
+      -4000:4000
