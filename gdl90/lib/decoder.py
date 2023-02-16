@@ -161,9 +161,7 @@ class Decoder(object):
             return False
         self.stats['msgs'][msg[0]][0] += 1
         m = messages.messageToObject(msg)
-        if not m or m is None:
-            return False
-        
+                
         self.return_handler(m)
 
         if m.MsgType == 'Heartbeat':

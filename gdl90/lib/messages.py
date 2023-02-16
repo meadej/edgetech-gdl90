@@ -179,6 +179,7 @@ def messageToObject(data):
         return None
     msgId = data[0]
     if not msgId in MessageIDMapping.keys():
-        return None
+        non_traffic = namedtuple("OtherMsg", "MsgType")
+        return non_traffic._make([msgId])
     msgObj = MessageIDMapping[msgId](data)
     return msgObj
