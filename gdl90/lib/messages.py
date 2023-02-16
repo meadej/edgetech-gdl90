@@ -169,7 +169,7 @@ MessageIDMapping = {
     0x00 : _parseHeartbeat,
     0x14 : _parseTrafficReport,
     0xCC: _parseStratuxHeartbeatCC,
-    0x53: _parseStratuxHeartbeatCC,
+    0x53: _parseStratuxHeartbeatCC
 }
 
 
