@@ -48,42 +48,6 @@ def _parseHeartbeat(msgBytes):
     
     return msg._make(fields)
 
-
-def _parseUplinkData(msgBytes):
-    """GDL90 message type 0x07"""
-    assert len(msgBytes) == 436
-    assert msgBytes[0] == 0x07
-    msg = namedtuple('UplinkData', 'MsgType TimeOfReception Header Data')
-    fields = ['UplinkData']
-    
-    fields.append(_unsigned24(msgBytes[1:], littleEndian=True))
-    fields.append(msgBytes[4:12]) ;# UAT header
-    fields.append(msgBytes[12:]) ;# data
-    
-    return msg._make(fields)
-
-
-def _parseOwnershipReport(msgBytes):
-    """GDL90 message type 0x0A"""
-    assert len(msgBytes) == 28
-    assert msgBytes[0] == 0x0a
-    msg = namedtuple('OwnershipReport', 'MsgType Status Type Address Latitude Longitude Altitude Misc NavIntegrityCat NavAccuracyCat HVelocity VVelocity TrackHeading EmitterCat CallSign Code')
-    return msg._make(_parseMessageType10and20('OwnershipReport', msgBytes))
-
-
-def _parseOwnershipGeometricAltitude(msgBytes):
-    """GDL90 message type 0x0B"""
-    assert len(msgBytes) == 5
-    assert msgBytes[0] == 0x0b
-    msg = namedtuple('OwnershipGeometricAltitude', 'MsgType Altitude VerticalMetrics')
-    fields = ['OwnershipGeometricAltitude']
-    
-    fields.append(_signed16(msgBytes[1:]) * 5) ;# height in 5 ft increments
-    fields.append((msgBytes[3] << 8) + msgBytes[4])
-    
-    return msg._make(fields)
-
-
 def _parseTrafficReport(msgBytes):
     """GDL90 message type 0x14"""
     assert len(msgBytes) == 28
@@ -140,26 +104,6 @@ def _parseMessageType10and20(msgType, msgBytes):
     fields.append(_thunkByte(msgBytes[27], 0xf0, -4))  # emergency/priority code
     
     return fields
-
-
-def _parseGpsTime(msgBytes):
-    """GDL90 message type 0x65"""
-    assert len(msgBytes) == 12
-    assert msgBytes[0] == 0x65
-    msg = namedtuple('GpsTime', 'MsgType Hour Minute Waas')
-    fields = ['GpsTime']
-    
-    fields.append(msgBytes[7]) # UTC hour
-    fields.append(msgBytes[8]) # UTC minute
-
-    waas = None
-    if msgBytes[3] == ord('1'):
-        waas = False
-    elif msgBytes[3] == ord('2'):
-        waas = True
-    fields.append(waas)
-    
-    return msg._make(fields)
 
 
 def _unsigned24(data, littleEndian=False):
@@ -220,10 +164,6 @@ def _thunkByte(c, mask=0xff, shift=0):
     elif shift > 0:
         val = val << shift
     return val
-
-def _parseAHRSReport(msgBytes):
-    #TODO - Implement AHRS Parsing
-    return None
 
 MessageIDMapping = {
     0x00 : _parseHeartbeat,

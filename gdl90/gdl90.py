@@ -67,7 +67,6 @@ class GDL90PubSub(BaseMQTTPubSub):
         """Format GDL message for passing onto the bus and publish"""
         if message.MsgType == "Heartbeat":
             self.current_gdl_timestamp = message.TimeStamp
-            logging.info("GDL Heartbeat")
             self._send_data({"GDL Heartbeat":"alive"})
 
         if message.MsgType == "TrafficReport":
@@ -115,13 +114,12 @@ class GDL90PubSub(BaseMQTTPubSub):
                 (str(self.gdl_receive_host),
                 int(self.gdl_receive_port))
             )
+            logging.info("Listening on socket")
         except Exception as e:
             logging.error("Error in establishing connection to local socket" + str(e))
 
         while not self.kill_listener:
-            logging.debug("Listening on socket")
             data, addr = self.soc.recvfrom(self.gdl_buffer_length)
-            logging.debug("Handling GDL message")
             self._handle_GDL_message(data)
 
         self.soc.close()
@@ -139,7 +137,6 @@ class GDL90PubSub(BaseMQTTPubSub):
         Returns:
             bool: Returns True if successful publish else False.
         """
-        logging.info("Sending data")
         out_json = self.generate_payload_json(
             push_timestamp=str(int(datetime.utcnow().timestamp())),
             device_type="SkyScan",
@@ -157,15 +154,11 @@ class GDL90PubSub(BaseMQTTPubSub):
         # publish the data as a JSON to the topic
         success = self.publish_to_topic(self.send_data_topic, out_json)
 
-        if success:
-            logging.debug(
-                f"Successfully sent data on channel {self.send_data_topic}: {json.dumps(data)}"
-            )
-        else:
+        if not success:
             logging.debug(
                 f"Failed to send data on channel {self.send_data_topic}: {json.dumps(data)}"
             )
-        # return True if successful else False
+
         return success
 
     def main(self: Any) -> None:
